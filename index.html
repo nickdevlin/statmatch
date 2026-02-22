@@ -295,12 +295,16 @@ for (let row = 0; row < 4; row++) {
       const wasRowMatch = previousSlot && previousSlot.classList.contains("row-match");
 
       const existingCard = slot.querySelector(".card");
-      if (existingCard) {
+      
+      if (existingCard && !existingCard.classList.contains("locked")) {
         from.appendChild(existingCard);
+        updateCardLabel(existingCard, from.classList.contains("slot") ? from : null);
       }
 
       slot.appendChild(dragged);
       slot.classList.add("filled");
+
+      updateCardLabel(dragged, slot);
 
       // Clean up old slot
       if (previousSlot) {
