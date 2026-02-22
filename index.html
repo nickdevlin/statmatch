@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>StatMatch</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+/* Tray */
+#tray {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+#instructions {
+  max-width: 800px;
+  margin: 20px auto 30px auto;
+  padding: 15px 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  font-size: 15px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+/* Board */
+#board {
+  display: grid;
+  grid-template-columns: 170px repeat(4, 150px);
+  grid-template-rows: repeat(4, 150px);
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+/* Row Labels */
+.row-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* Slots */
+.slot {
+  position: relative;
+  border: 2px dashed #999;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slot.filled {
+  border-style: solid;
+}
+
+.slot.correct {
+  border: 6px solid #00C853; /* bold green */
+  box-shadow: 0 0 10px #00C853;
+  background: rgba(46,125,50,0.1);
+}
+
+.slot.row-match {
+  border: 6px solid #FFB300; /* bold yellow */
+  background: rgba(218,165,32,0.15);
+}
+
+/* Slot Numbers */
+.slot-number {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #444;
+  pointer-events: none;
+}
+
+/* Cards */
+.card {
+  width: 150px;
+  height: 150px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: grab;
+  position: relative;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* Name overlay */
+.card-name {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.6);
+  padding: 6px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.card.dragging {
+  opacity: 0.5;
+  z-index: 1000;
+}
+
+#controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+#turn-display {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+button {
+  margin: 5px;
+  padding: 10px 20px;
+  font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>StatMatch</h2>
+
+<div id="instructions">
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+  Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+  Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris 
+  nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor 
+  in reprehenderit in voluptate velit esse cillum.
+</div>
+
+<div id="tray"></div>
+<div id="board"></div>
+
+<div id="controls">
+  <button id="check">Check</button>
+  <span id="turn-display">Turns Remaining: 5</span>
+  <button id="reset">Reset</button>
+</div>
+
+<p id="result"></p>
+
+<script>
+
+/* ---------------- DATA ---------------- */
+
+const correctOrder = [
+  "p13","p15","p5","p3",
+  "p14","p1","p6","p11",
+  "p2","p9","p8","p10",
+  "p4","p12","p7","p16"
+];
+
+const categories = [
+  "Career WAR",
+  "Career Innings Pitched",
+  "Career Home Runs",
+  "All-Star Games"
+];
+
+// 🔹 Hard-coded slot values (edit these anytime)
+const slotValues = [
+  [0.7, 7.8, 41.9, 111.2],
+  [1, 471.1, 2156.2, 4494.2],
+  [0, 187, 280, 609],
+  [0, 7, 8, 15]
+];
+
+// 🔹 Player names (replace later)
+const playerNames = {
+  p1: "José Fernández",
+  p2: "Terrance Gore",
+  p3: "Rickey Henderson",
+  p4: "Matt Murton",
+  p5: "Curt Flood",
+  p6: "Cliff Lee",
+  p7: "Satchel Paige",
+  p8: "Shohei Ohtani",
+  p9: "Turkey Stearnes",
+  p10: "Sammy Sosa",
+  p11: "Eppa Rixey",
+  p12: "Dave Stieb",
+  p13: "Brooks Kieschnick",
+  p14: "Mark Grace",
+  p15: "Spencer Strider",
+  p16: "Tony Gwynn"
+};
+
+const imageMap = {
+  p1:"fernandez.jpg",
+  p2:"gore.jpg",
+  p3:"henderson.jpg",
+  p4:"murton.jpg",
+  p5:"flood.jpg",
+  p6:"lee.jpg",
+  p7:"paige.jpg",
+  p8:"ohtani.jpg",
+  p9:"stearnes.jpg",
+  p10:"sosa.jpg",
+  p11:"rixey.jpg",
+  p12:"stieb.jpg",
+  p13:"kieschnick.jpg",
+  p14:"grace.jpg",
+  p15:"strider.jpg",
+  p16:"gwynn.jpg"
+};
+
+const tray = document.getElementById("tray");
+const board = document.getElementById("board");
+const result = document.getElementById("result");
+
+function updateCardLabel(card, slot) {
+
+  const nameDiv = card.querySelector(".card-name");
+  const baseName = playerNames[card.dataset.value];
+
+  if (slot && slot.classList.contains("slot")) {
+    const slotNumber = slot.querySelector(".slot-number").textContent;
+    nameDiv.textContent = `${baseName} - ${slotNumber}`;
+  } else {
+    nameDiv.textContent = baseName;
+  }
+}
+
+let turnsRemaining = 5;
+const turnDisplay = document.getElementById("turn-display");
+const checkButton = document.getElementById("check");
+
+function updateTurnDisplay() {
+  turnDisplay.textContent = `Turns Remaining: ${turnsRemaining}`;
+}
+
+let dragged = null;
+const slots = [];
+
+/* ---------------- BUILD BOARD ---------------- */
+
+for (let row = 0; row < 4; row++) {
+
+  const label = document.createElement("div");
+  label.className = "row-label";
+  label.textContent = categories[row];
+  board.appendChild(label);
+
+  for (let col = 0; col < 4; col++) {
+
+    const slot = document.createElement("div");
+    slot.className = "slot";
+
+    const numberDisplay = document.createElement("div");
+    numberDisplay.className = "slot-number";
+    numberDisplay.textContent = slotValues[row][col];
+    slot.appendChild(numberDisplay);
+
+    board.appendChild(slot);
+    slots.push(slot);
+
+    slot.addEventListener("dragover", e => e.preventDefault());
+
+    slot.addEventListener("drop", e => {
+      e.preventDefault();
+      if (!dragged) return;
+
+      const from = dragged.parentElement;
+      const previousSlot = from.classList.contains("slot") ? from : null;
+
+      // 🟡 Store whether it WAS yellow before we modify anything
+      const wasRowMatch = previousSlot && previousSlot.classList.contains("row-match");
+
+      const existingCard = slot.querySelector(".card");
+      if (existingCard) {
+        from.appendChild(existingCard);
+      }
+
+      slot.appendChild(dragged);
+      slot.classList.add("filled");
+
+      // Clean up old slot
+      if (previousSlot) {
+        previousSlot.classList.remove("correct", "row-match");
+  
+      if (!previousSlot.querySelector(".card")) {
+        previousSlot.classList.remove("filled");
+        }
+      }
+
+      // 🟡 Reapply yellow if same row
+      if (wasRowMatch && previousSlot) {
+
+        const oldRow = Math.floor(slots.indexOf(previousSlot) / 4);
+        const newRow = Math.floor(slots.indexOf(slot) / 4);
+
+        if (oldRow === newRow) {
+          slot.classList.add("row-match");
+        }
+      }
+    });
+
+  }
+}
+
+/* ---------------- BUILD CARDS ---------------- */
+
+function shuffle(arr){
+  return arr
+    .map(v => ({v, r: Math.random()}))
+    .sort((a,b)=>a.r-b.r)
+    .map(o=>o.v);
+}
+
+shuffle([...correctOrder]).forEach(key => {
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.draggable = true;
+  card.dataset.value = key;
+
+  const img = document.createElement("img");
+  img.src = imageMap[key];
+  img.draggable = false;
+
+  const nameOverlay = document.createElement("div");
+  nameOverlay.className = "card-name";
+  nameOverlay.textContent = playerNames[key];
+
+  card.appendChild(img);
+  card.appendChild(nameOverlay);
+
+  card.addEventListener("dragstart", () => {
+    dragged = card;
+    card.classList.add("dragging");
+  });
+
+  card.addEventListener("dragend", () => {
+    dragged = null;
+    card.classList.remove("dragging");
+  });
+
+  tray.appendChild(card);
+  updateCardLabel(card, null);
+});
+
+/* ---------------- CHECK ---------------- */
+
+document.getElementById("check").addEventListener("click", () => {
+
+  if (turnsRemaining <= 0) return;
+
+  slots.forEach(slot => {
+    slot.classList.remove("correct", "row-match");
+  });
+
+  let allCorrect = true;
+
+  for (let row = 0; row < 4; row++) {
+
+    const expectedRowPlayers = correctOrder.slice(row * 4, row * 4 + 4);
+
+    for (let col = 0; col < 4; col++) {
+
+      const slotIndex = row * 4 + col;
+      const slot = slots[slotIndex];
+      const card = slot.querySelector(".card");
+
+      if (!card) {
+        allCorrect = false;
+        continue;
+      }
+
+      const placedKey = card.dataset.value;
+
+      if (placedKey === correctOrder[slotIndex]) {
+        slot.classList.add("correct");
+      }
+      else if (expectedRowPlayers.includes(placedKey)) {
+        slot.classList.add("row-match");
+        allCorrect = false;
+      }
+      else {
+        allCorrect = false;
+      }
+    }
+  }
+
+  if (allCorrect) {
+    result.textContent = "🏆 You Win!";
+    checkButton.disabled = true;
+    return;
+  }
+
+  turnsRemaining--;
+  updateTurnDisplay();
+
+  if (turnsRemaining === 0) {
+    result.textContent = "❌ Game Over! You've used all five turns.";
+    checkButton.disabled = true;
+  } else {
+    result.textContent = "Keep adjusting...";
+  }
+});
+
+/* ---------------- RESET ---------------- */
+
+document.getElementById("reset").addEventListener("click", () => {
+
+  slots.forEach(slot => {
+
+    const card = slot.querySelector(".card");
+    if (card) {
+      tray.appendChild(card);
+      updateCardLabel(card, null);
+    }
+
+    // 🔴 Remove ALL state classes
+    slot.classList.remove("filled", "correct", "row-match");
+  });
+
+  turnsRemaining = 5;
+  updateTurnDisplay();
+  checkButton.disabled = false;
+
+  result.textContent = "";
+});
+
+</script>
+</body>
+</html>
