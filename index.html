@@ -419,6 +419,25 @@ document.getElementById("check").addEventListener("click", () => {
     return;
   }
 
+  setTimeout(() => {
+    // 🔁 Remove incorrect cards from board
+    slots.forEach(slot => {
+    
+      const card = slot.querySelector(".card");
+    
+      if (!card) return;
+    
+      const isCorrect = slot.classList.contains("correct");
+      const isRowMatch = slot.classList.contains("row-match");
+    
+      if (!isCorrect && !isRowMatch) {
+        tray.appendChild(card);
+        updateCardLabel(card, null);
+        slot.classList.remove("filled");
+      }
+    });
+  }, 300);
+  
   turnsRemaining--;
   updateTurnDisplay();
 
