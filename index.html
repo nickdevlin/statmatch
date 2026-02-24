@@ -125,6 +125,13 @@ body {
   z-index: 1000;
 }
 
+.card.locked {
+  cursor: default;
+  opacity: 0.95;
+  outline: 3px solid #00C853;
+}
+  
+
 #controls {
   display: flex;
   justify-content: center;
@@ -357,10 +364,16 @@ shuffle([...correctOrder]).forEach(key => {
   card.appendChild(img);
   card.appendChild(nameOverlay);
 
-  card.addEventListener("dragstart", () => {
-    dragged = card;
-    card.classList.add("dragging");
-  });
+  card.addEventListener("dragstart", (e) => {
+
+  if (card.classList.contains("locked")) {
+    e.preventDefault();
+    return;
+  }
+
+  dragged = card;
+  card.classList.add("dragging");
+});
 
   card.addEventListener("dragend", () => {
     dragged = null;
@@ -402,6 +415,9 @@ document.getElementById("check").addEventListener("click", () => {
 
       if (placedKey === correctOrder[slotIndex]) {
         slot.classList.add("correct");
+      
+        card.draggable = false;
+        card.classList.add("locked");
       }
       else if (expectedRowPlayers.includes(placedKey)) {
         slot.classList.add("row-match");
@@ -459,6 +475,8 @@ document.getElementById("reset").addEventListener("click", () => {
     if (card) {
       tray.appendChild(card);
       updateCardLabel(card, null);
+      card.draggable = true;
+      card.classList.remove("locked");
     }
 
     // 🔴 Remove ALL state classes
